@@ -61,10 +61,11 @@ From the project root:
 streamlit run dashboard/district_anomaly_dashboard.py
 
 The dashboard will be available at:
-
 http://localhost:8501
 
-Repository Structure
+##Repository Structure
+
+Aadhar Intelligence System(AIS)
 ├── src/
 │   ├── api_ingestion/
 │   └── utils/
