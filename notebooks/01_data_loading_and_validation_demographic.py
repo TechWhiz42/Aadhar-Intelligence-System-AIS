@@ -1,138 +1,113 @@
-
 import pandas as pd
 import glob
-
-# Path to demographic files
-path = "../data/raw/demographic/*.csv"
-files = glob.glob(path)
-
-print(files)
+from pathlib import Path
 
 
+# Resolve project paths safely (independent of working directory)
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+RAW_DIR = PROJECT_ROOT / "data" / "raw" / "demographic"
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+
+# Ensure output directory exists
+PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 
-df_list = [pd.read_csv(file) for file in files]
+# Load raw demographic data
+
+files = glob.glob(str(RAW_DIR / "*.csv"))
+
+if not files:
+    raise RuntimeError(f"No demographic raw files found in {RAW_DIR}")
+
+df_list = [pd.read_csv(f) for f in files]
+demographic_df = pd.concat(df_list, ignore_index=True)
+
+print("Total rows:", demographic_df.shape[0])
+print("Total columns:", demographic_df.shape[1])
 
 
-
-demographic_df = pd.concat(df_list, ignore_index = True)
-print("Total rows" , demographic_df.shape[0])
-print("Total columns: ", demographic_df.shape[1])
-
-print(demographic_df.head())
-
-
-print(demographic_df.info())
-
-demographic_df['date'] = pd.to_datetime(demographic_df['date'], errors='coerce')
-print(demographic_df.head())
-
-demographic_df['demo_age_5_17'] = pd.to_numeric(demographic_df['demo_age_5_17'], errors='coerce')
-print(demographic_df.head())
-
-demographic_df['demo_age_17_'] = pd.to_numeric(
-    demographic_df['demo_age_17_'], errors='coerce'
-)
-
-print(demographic_df.head())
-
-print(demographic_df.isna().sum())
-
-print(demographic_df.isna())
-
-duplicate_count = demographic_df.duplicated().sum()
-print("Duplicate rows:", duplicate_count)
-
-
-negative_5_17 = (demographic_df['demo_age_5_17']<0).sum()
-negative_17_plus = (demographic_df['demo_age_17_']<0).sum()
-print("Negative values (5-17): ", negative_5_17)
-print("Negative values (17-plus): ", negative_17_plus)
-
-demographic_df['total_demo'] = (
-    demographic_df['demo_age_5_17'] + demographic_df['demo_age_17_']
-)
-
-demographic_df['total_demo'].describe()
-
-# "I validated demographic data by checking schema consistency, missing values, duplicates,and basic numeric sanity. No transformations were applied at this stage to preserve the raw data integrity"
-
-print(demographic_df.shape)
+# Cleaning
 
 demographic_clean = demographic_df.copy()
 
-text_cols = ['state', 'district']
-
+# Standardise text fields
+text_cols = ["state", "district"]
 for col in text_cols:
     demographic_clean[col] = (
         demographic_clean[col]
+        .astype(str)
         .str.strip()
         .str.title()
     )
 
-demographic_clean.isna().sum()
-
-demographic_clean = demographic_clean.dropna(
-    subset=['state', 'district']
+# Parse date
+demographic_clean["date"] = pd.to_datetime(
+    demographic_clean["date"],
+    errors="coerce"
 )
 
-count_cols = ['demo_age_5_17', 'demo_age_17_']
-demographic_clean[count_cols] = demographic_clean[count_cols].fillna(0)
+# Drop invalid geography
+demographic_clean = demographic_clean.dropna(
+    subset=["state", "district"]
+)
 
-for col in count_cols:
+# demographic age columns
+demo_cols = ["demo_age_5_17", "demo_age_17_"]
+
+# Handle missing values
+demographic_clean[demo_cols] = demographic_clean[demo_cols].fillna(0)
+
+# Remove negative values
+for col in demo_cols:
     demographic_clean = demographic_clean[
         demographic_clean[col] >= 0
     ]
 
-demographic_clean['total_demographic'] = (
-    demographic_clean['demo_age_5_17'] +
-    demographic_clean['demo_age_17_']
+# Derived metric
+demographic_clean["demographic_count"] = (
+    demographic_clean["demo_age_5_17"] +
+    demographic_clean["demo_age_17_"]
 )
 
-
+# Deduplication
 before = demographic_clean.shape[0]
 demographic_clean = demographic_clean.drop_duplicates()
 after = demographic_clean.shape[0]
 
-print(f"Duplicates removed: {before-after}")
+print("Duplicates removed:", before - after)
 
-demographic_clean.info()
-demographic_clean.describe()
 
+# Save cleaned data
 
 demographic_clean.to_csv(
-    "../data/processed/demographic_clean.csv",
+    PROCESSED_DIR / "demographic_clean.csv",
     index=False
 )
 
-# "Demographic data was cleaned by standardising geographic names, handling missing values conservatively, removing invalid records, and creating derived population metrics. Raw data was preserved."
+
+# Daily district aggregation
 
 demographic_agg = (
     demographic_clean
-    .groupby(['date', 'state', 'district'], as_index=False)
+    .groupby(["date", "state", "district"], as_index=False)
     .agg({
-        'demo_age_5_17': 'sum',
-        'demo_age_17_': 'sum',
-        'total_demographic': 'sum'
+        "demo_age_5_17": "sum",
+        "demo_age_17_": "sum",
+        "demographic_count": "sum"
     })
 )
-demographic_agg.head(), demographic_agg.shape
 
 demographic_agg.to_csv(
-    "../data/processed/demographic_agg.csv",
+    PROCESSED_DIR / "demographic_agg.csv",
     index=False
 )
 
-df = demographic_agg
-df.duplicated(subset=['date', 'state', 'district']).sum()
+# Final sanity check
+dup_count = demographic_agg.duplicated(
+    ["date", "state", "district"]
+).sum()
 
-
-master_df = demographic_agg.copy()
-enrolment_agg = pd.read_csv("../data/processed/enrolment_agg.csv")
-enrolment_agg['date'] = pd.to_datetime(enrolment_agg['date'], errors='coerce')
-
-master_df = master_df.merge(
-    enrolment_agg,
-    on=['date', 'state', 'district'],
-    how='left'
-)
+print("Duplicate rows after aggregation:", dup_count)
+print("✅ demographic cleaning & aggregation completed successfully")

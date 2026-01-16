@@ -1,3 +1,5 @@
+plotly
+streamlit
 python-dotenv
 requests
 joblib

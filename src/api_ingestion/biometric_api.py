@@ -13,7 +13,7 @@ if not API_KEY:
     raise RuntimeError("DATA_GOV_API_KEY not found in environment variable")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = PROJECT_ROOT / "outputs" / "biometric"
+OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "biometric"
 
 
 def main():

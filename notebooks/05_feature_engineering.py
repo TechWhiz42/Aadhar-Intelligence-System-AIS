@@ -1,57 +1,87 @@
-
 import pandas as pd
 import numpy as np
-
-master_df = "../data/processed/master_district_daily.csv"
-
-master_df = pd.read_csv(master_df)
+from pathlib import Path
 
 
-master_features = master_df.copy()
+# Resolve project paths safely
 
-master_features['enrolment_pressure'] = (
-    master_features['enrolment_count'] /
-    master_features['total_demographic'].replace(0, np.nan)
-).fillna(0).infer_objects(copy=False)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+
+MASTER_PATH = PROCESSED_DIR / "master_district_daily.csv"
+
+if not MASTER_PATH.exists():
+    raise RuntimeError(
+        "master_district_daily.csv not found. Run merge step first."
+    )
 
 
-master_features['biometric_load_ratio'] = (
-    master_features['biometric_count'] /
-    master_features['enrolment_count'].replace(0, np.nan)
+# Load master daily dataset
+
+df = pd.read_csv(MASTER_PATH)
+
+
+# Schema validation (this will FAIL if wrong file is used)
+
+required_cols = {
+    "demographic_count",
+    "enrolment_count",
+    "biometric_count",
+    "demo_age_5_17",
+    "demo_age_17_",
+    "date"
+}
+
+missing = required_cols - set(df.columns)
+if missing:
+    raise RuntimeError(f"Missing required columns: {missing}")
+
+
+# Feature engineering (USES demographic_count ONLY)
+
+features = df.copy()
+
+features["enrolment_pressure"] = (
+    features["enrolment_count"] /
+    features["demographic_count"].replace(0, np.nan)
 ).fillna(0)
 
-master_features['youth_population_ratio'] = (
-    master_features['demo_age_5_17'] /
-    master_features['total_demographic'].replace(0, np.nan)
+features["biometric_load_ratio"] = (
+    features["biometric_count"] /
+    features["enrolment_count"].replace(0, np.nan)
 ).fillna(0)
 
-master_features['adult_enrolment_ratio'] = (
-    master_features['demo_age_17_']/
-    master_features['total_demographic'].replace(0, np.nan)
+features["youth_population_ratio"] = (
+    features["demo_age_5_17"] /
+    features["demographic_count"].replace(0, np.nan)
+).fillna(0)
+
+features["adult_population_ratio"] = (
+    features["demo_age_17_"] /
+    features["demographic_count"].replace(0, np.nan)
 ).fillna(0)
 
 
-master_features['date'] = pd.to_datetime(
-    master_features['date'],
-    errors='coerce'
-)
+# Temporal features
 
-master_features['day_of_week'] = master_features['date'].dt.dayofweek
-
-master_features['month'] = master_features['date'].dt.month
+features["date"] = pd.to_datetime(features["date"], errors="coerce")
+features["day_of_week"] = features["date"].dt.dayofweek
+features["month"] = features["date"].dt.month
 
 
-master_features['high_enrolment_ratio'] = (
-    master_features['enrolment_pressure'] >
-    master_features['enrolment_pressure'].quantile(0.75)
+# Binary signal
+
+features["high_enrolment_ratio"] = (
+    features["enrolment_pressure"] >
+    features["enrolment_pressure"].quantile(0.75)
 ).astype(int)
 
-master_features.describe()
 
+# Save features
 
-master_features.to_csv(
-    "../data/processed/master_features_district_daily.csv",
+features.to_csv(
+    PROCESSED_DIR / "master_features_district_daily.csv",
     index=False
 )
 
-
+print("✅ Daily feature engineering completed successfully")

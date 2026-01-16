@@ -8,21 +8,21 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-print("RUNNING FEATURE FILE:", __file__)
+MONTHLY_PATH = PROCESSED_DIR / "master_district_monthly.csv"
 
-MASTER_PATH = PROCESSED_DIR / "master_district_daily.csv"
-
-if not MASTER_PATH.exists():
-    raise RuntimeError("master_district_daily.csv not found. Run merge step first.")
-
-
-# Load master daily dataset
-
-df = pd.read_csv(MASTER_PATH)
+if not MONTHLY_PATH.exists():
+    raise RuntimeError(
+        "master_district_monthly.csv not found. "
+        "Run monthly aggregation first."
+    )
 
 
-# Schema validation (fail fast, clearly)
+# Load monthly master dataset
+
+df = pd.read_csv(MONTHLY_PATH)
+
+
+# Schema validation
 
 required_cols = {
     "demographic_count",
@@ -30,7 +30,7 @@ required_cols = {
     "biometric_count",
     "demo_age_5_17",
     "demo_age_17_",
-    "date"
+    "year_month"
 }
 
 missing = required_cols - set(df.columns)
@@ -38,7 +38,7 @@ if missing:
     raise RuntimeError(f"Missing required columns: {missing}")
 
 
-# Feature engineering
+# Feature engineering (monthly)
 
 features = df.copy()
 
@@ -65,28 +65,27 @@ features["adult_population_ratio"] = (
 
 # Temporal features
 
-features["date"] = pd.to_datetime(
-    features["date"],
+features["year_month"] = pd.to_datetime(
+    features["year_month"],
     errors="coerce"
 )
 
-features["day_of_week"] = features["date"].dt.dayofweek
-features["month"] = features["date"].dt.month
+features["year"] = features["year_month"].dt.year
+features["month"] = features["year_month"].dt.month
 
 
-# Binary signal (high stress districts)
+# Monthly signal
 
-features["high_enrolment_ratio"] = (
+features["high_enrolment_pressure"] = (
     features["enrolment_pressure"] >
     features["enrolment_pressure"].quantile(0.75)
 ).astype(int)
 
-
-# Save features
+# Save monthly features
 
 features.to_csv(
-    PROCESSED_DIR / "master_features_district_daily.csv",
+    PROCESSED_DIR / "master_features_district_monthly.csv",
     index=False
 )
 
-print("✅ Daily feature engineering completed successfully")
+print("✅ Monthly feature engineering completed successfully")

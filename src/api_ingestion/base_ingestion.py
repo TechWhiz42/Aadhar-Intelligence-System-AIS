@@ -5,7 +5,7 @@ import time
 from requests.exceptions import ReadTimeout, ConnectionError
 
 LIMIT = 1000
-BATCH_SIZE = 200000
+BATCH_SIZE = 2000
 SLEEP_SECONDS = 0.5
 MAX_RETRIES = 5
 
@@ -18,7 +18,6 @@ class BaseIngestion:
 
         self.output_dir.mkdir(parents=True ,exist_ok=True)
 
-        self.raw_file = self.output_dir / "raw.csv"
         self.progress_file = self.output_dir / "last_offset.txt"
 
     def load_last_offset(self):
@@ -62,6 +61,8 @@ class BaseIngestion:
         offset = self.load_last_offset()
         fetched = 0
 
+        raw_file = self.output_dir / f"raw_api_offset_{offset}.csv"
+
         print(f"\n▶ Starting ingestion batch")
         print(f"▶ Resuming from offset: {offset}")
         print(f"▶ Target batch size: {BATCH_SIZE}\n")
@@ -84,12 +85,12 @@ class BaseIngestion:
                 df = df.iloc[:remaining]
 
             write_header = (
-                    not self.raw_file.exists()
-                    or self.raw_file.stat().st_size == 0
+                    not raw_file.exists()
+                    or raw_file.stat().st_size == 0
             )
 
             df.to_csv(
-                self.raw_file,
+                raw_file,
                 mode="a",
                 index=False,
                 header=write_header
