@@ -101,9 +101,3 @@ http://localhost:8501
 * Automated anomaly alerts
 * Data quality monitoring dashboard
 * Explainability using SHAP values
-
-## License
-
-This project is for educational and analytical purposes.
-
-```
