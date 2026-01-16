@@ -1,3 +1,9 @@
+Here’s a **clean, professional README** you can copy-paste directly.
+It’s concise, technical, and interview-ready.
+
+---
+
+````md
 # District-Level Anomaly Detection Dashboard
 
 An end-to-end data pipeline and interactive dashboard for detecting and monitoring
@@ -5,6 +11,8 @@ district-level anomalies using government enrolment, biometric, and demographic 
 
 This project demonstrates real-world data engineering, feature engineering,
 unsupervised machine learning, and visualization practices.
+
+---
 
 ## Project Overview
 
@@ -22,6 +30,7 @@ API Ingestion
 → Feature Engineering  
 → Anomaly Detection (Isolation Forest)  
 → Interactive Dashboard
+
 
 ## Key Features
 
@@ -53,19 +62,24 @@ API Ingestion
 - Feature-level explainability
 - Ranking of top anomalous districts
 
+
 ## Running the Dashboard
 
 From the project root:
 
 ```bash
 streamlit run dashboard/district_anomaly_dashboard.py
+````
 
 The dashboard will be available at:
+
+```
 http://localhost:8501
+```
 
-##Repository Structure
+## Repository Structure
 
-Aadhar Intelligence System(AIS)
+```
 ├── src/
 │   ├── api_ingestion/
 │   └── utils/
@@ -79,3 +93,18 @@ Aadhar Intelligence System(AIS)
 ├── models/           # ignored in git
 ├── README.md
 └── requirements.txt
+```
+
+## Notes
+
+* API keys are stored securely using environment variables and are not committed.
+* Raw and processed data directories are excluded from version control.
+* The dashboard reflects data truthfully and does not mask upstream data issues.
+
+## Future Enhancements
+
+* Monthly vs daily dashboard toggle
+* Geographic heatmaps
+* Automated anomaly alerts
+* Data quality monitoring dashboard
+* Explainability using SHAP values
